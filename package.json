@@ -1,0 +1,38 @@
+{
+  "name": "nginx_cerbero",
+  "version": "1.0.0",
+  "description": "Access manager for nginx Edit",
+  "main": "index.js",
+  "scripts": {
+    "test": "npm run lint && npm run unit",
+    "unit": "tap test.js",
+    "lint": "standard | snazzy",
+    "start": "fastify index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/allevo/nginx_cerbero.git"
+  },
+  "author": "allevo",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/allevo/nginx_cerbero/issues"
+  },
+  "homepage": "https://github.com/allevo/nginx_cerbero#readme",
+  "dependencies": {
+    "bcrypt": "^1.0.3",
+    "fastify": "^0.39.1",
+    "fastify-cookie": "^1.2.0",
+    "fastify-env": "^0.4.0",
+    "fastify-mongodb": "^0.4.0",
+    "fastify-redis": "^0.4.0",
+    "fastify-static": "^0.6.0",
+    "randomstring": "^1.1.5"
+  },
+  "devDependencies": {
+    "pre-commit": "^1.2.2",
+    "snazzy": "^7.0.0",
+    "standard": "^10.0.3",
+    "tap": "^11.0.1"
+  }
+}

@@ -1,0 +1,40 @@
+<html>
+  <body>
+    <script type="application/javascript">
+      function onSignup() {
+        var username = document.getElementById('username').value
+        var password = document.getElementById('password').value
+        var groups = document.getElementById('groups').value.split(',').map(function (g) { return g.trim() })
+
+        const body = {
+          username: username,
+          password: password,
+          groups: groups
+        }
+
+        var myHeaders = new Headers()
+        myHeaders.append('Content-Type', 'application/json');
+
+        var myRequest = new Request('/signup', {
+          method: 'POST',
+          body: JSON.stringify(body),
+          headers: myHeaders,
+          credentials: 'include'
+        })
+
+        fetch(myRequest)
+          .then(response => {
+            alert('ok!')
+          })
+          .catch(e => {
+            console.log(e)
+          })
+      }
+    </script>
+    <h1>Signup</h1>
+    <input id='username' placeholder='username' type='text' />
+    <input id='password' placeholder='password' type='password' />
+    <input id='groups' placeholder='groups' type='text' />
+    <button onClick='onSignup()'>Signup</button>
+  </body>
+</html>
