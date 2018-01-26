@@ -5,7 +5,7 @@ const Fastify = require('fastify')
 const cerbero = require('./')
 
 test('all cycle', async t => {
-  t.plan(18)
+  t.plan(9)
 
   const fastify = Fastify()
   t.tearDown(() => fastify.close())
@@ -41,70 +41,95 @@ test('all cycle', async t => {
   })
   t.equal(loginResponse.statusCode, 200, loginResponse.payload)
   t.ok(loginResponse.headers['set-cookie'])
-  const { _id: userId } = JSON.parse(loginResponse.payload)
 
-  const authResponse1 = await fastify.inject({
-    method: 'GET',
-    url: '/auth',
-    headers: {
-      'Content-type': 'application/json',
-      cookie: loginResponse.headers['set-cookie'],
-      'group-expression': GROUP1 + ' && ' + GROUP2
-    }
-  })
-  t.equal(authResponse1.statusCode, 204, authResponse1.payload)
-  t.equal(authResponse1.headers['allowed'], '1')
-  t.equal(authResponse1.headers['user-id'], userId)
+  t.test(GROUP1 + ' && ' + GROUP2, async t => {
+    t.plan(2)
 
-  const authResponse2 = await fastify.inject({
-    method: 'GET',
-    url: '/auth',
-    headers: {
-      'Content-type': 'application/json',
-      cookie: loginResponse.headers['set-cookie'],
-      'group-expression': GROUP1 + ' || ' + GROUP2
-    }
+    const authResponse = await fastify.inject({
+      method: 'GET',
+      url: '/check',
+      headers: {
+        'Content-type': 'application/json',
+        cookie: loginResponse.headers['set-cookie'],
+        'group-expression': GROUP1 + ' && ' + GROUP2
+      }
+    })
+    t.equal(authResponse.statusCode, 204, authResponse.payload)
+    t.equal(authResponse.headers['allowed'], '1')
   })
-  t.equal(authResponse2.statusCode, 204, authResponse2.payload)
-  t.equal(authResponse2.headers['allowed'], '1')
-  t.equal(authResponse2.headers['user-id'], userId)
 
-  const authResponse3 = await fastify.inject({
-    method: 'GET',
-    url: '/auth',
-    headers: {
-      'Content-type': 'application/json',
-      cookie: loginResponse.headers['set-cookie'],
-      'group-expression': GROUP1 + ' && !' + GROUP2
-    }
-  })
-  t.equal(authResponse3.statusCode, 204, authResponse3.payload)
-  t.equal(authResponse3.headers['allowed'], '0')
-  t.equal(authResponse3.headers['user-id'], userId)
+  t.test(GROUP1 + ' || ' + GROUP2, async t => {
+    t.plan(2)
 
-  const authResponse4 = await fastify.inject({
-    method: 'GET',
-    url: '/auth',
-    headers: {
-      'Content-type': 'application/json',
-      cookie: 'sid=unknown-cookie',
-      'group-expression': GROUP1 + ' && !' + GROUP2
-    }
+    const authResponse = await fastify.inject({
+      method: 'GET',
+      url: '/check',
+      headers: {
+        'Content-type': 'application/json',
+        cookie: loginResponse.headers['set-cookie'],
+        'group-expression': GROUP1 + ' || ' + GROUP2
+      }
+    })
+    t.equal(authResponse.statusCode, 204, authResponse.payload)
+    t.equal(authResponse.headers['allowed'], '1')
   })
-  t.equal(authResponse4.statusCode, 204, authResponse4.payload)
-  t.equal(authResponse4.headers['allowed'], undefined)
-  t.equal(authResponse4.headers['user-id'], '')
 
-  const authResponse5 = await fastify.inject({
-    method: 'GET',
-    url: '/auth',
-    headers: {
-      'Content-type': 'application/json',
-      // not cookies
-      'group-expression': GROUP1 + ' && !' + GROUP2
-    }
+  t.test(GROUP1 + ' && !' + GROUP2, async t => {
+    t.plan(1)
+
+    const authResponse = await fastify.inject({
+      method: 'GET',
+      url: '/check',
+      headers: {
+        'Content-type': 'application/json',
+        cookie: loginResponse.headers['set-cookie'],
+        'group-expression': GROUP1 + ' && !' + GROUP2
+      }
+    })
+    t.equal(authResponse.statusCode, 403, authResponse.payload)
   })
-  t.equal(authResponse5.statusCode, 204, authResponse5.payload)
-  t.equal(authResponse5.headers['allowed'], undefined)
-  t.equal(authResponse5.headers['user-id'], '')
+
+  t.test('!' + GROUP1 + ' && !' + GROUP2, async t => {
+    t.plan(1)
+
+    const authResponse = await fastify.inject({
+      method: 'GET',
+      url: '/check',
+      headers: {
+        'Content-type': 'application/json',
+        cookie: loginResponse.headers['set-cookie'],
+        'group-expression': '!' + GROUP1 + ' && !' + GROUP2
+      }
+    })
+    t.equal(authResponse.statusCode, 403, authResponse.payload)
+  })
+
+  t.test('true with cookie', async t => {
+    t.plan(1)
+
+    const authResponse = await fastify.inject({
+      method: 'GET',
+      url: '/check',
+      headers: {
+        'Content-type': 'application/json',
+        cookie: loginResponse.headers['set-cookie'],
+        'group-expression': 'true'
+      }
+    })
+    t.equal(authResponse.statusCode, 204, authResponse.payload)
+  })
+
+  t.test('true without cookie', async t => {
+    t.plan(1)
+
+    const authResponse = await fastify.inject({
+      method: 'GET',
+      url: '/check',
+      headers: {
+        'Content-type': 'application/json',
+        'group-expression': 'true'
+      }
+    })
+    t.equal(authResponse.statusCode, 204, authResponse.payload)
+  })
 })

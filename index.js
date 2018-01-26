@@ -16,6 +16,16 @@ const schema = {
   }
 }
 
+function storeSessionWrap (fastify) {
+  const hmset = util.promisify(fastify.redis.hmset).bind(fastify.redis)
+  return hmset
+}
+
+function getSessionWrap (fastify) {
+  const hgetall = util.promisify(fastify.redis.hgetall).bind(fastify.redis)
+  return hgetall
+}
+
 module.exports = async function (fastify, opts) {
   fastify
     .register(require('fastify-env'), { schema, data: opts })
@@ -26,11 +36,15 @@ module.exports = async function (fastify, opts) {
         .register(require('fastify-redis'), { url: fastify.config.REDIS_URL })
         .register(require('fastify-static'), { root: path.join(__dirname, 'public') })
         .decorate('generateSid', function generateSid () { return randomstring.generate() })
+        .after(function () {
+          fastify.decorate('storeSession', storeSessionWrap(fastify))
+          fastify.decorate('getSession', getSessionWrap(fastify))
+        })
 
       fastify.post('/login', handleLogin)
       fastify.post('/signup', handleSignup)
 
-      fastify.all('/auth', handleAuth)
+      fastify.all('/check', handleAuth)
     })
 }
 
@@ -54,7 +68,7 @@ async function handleLogin (request, reply) {
   const isPasswordValid = bcrypt.compareSync(password, user.password)
   if (!isPasswordValid) throw new Error('No user found')
 
-  // Avoid to send to the client the hash of the password
+  // Avoid to send to the client the hashed password
   user.password = undefined
 
   const groupMap = user.groups.reduce(function (acc, item) {
@@ -63,7 +77,7 @@ async function handleLogin (request, reply) {
   }, {})
 
   const sid = this.generateSid()
-  await util.promisify(this.redis.hmset).call(this.redis, sid, {
+  await this.storeSession(sid, {
     userId: user._id.toString(),
     groups: JSON.stringify(groupMap)
   })
@@ -73,35 +87,35 @@ async function handleLogin (request, reply) {
 
 async function handleAuth (request, reply) {
   const groupExpression = request.headers['group-expression']
-  if (!groupExpression) throw new Error('No grop expression provided')
+  if (!groupExpression) throw new Error('No group expression provided')
+
+  let groups = { logged: false }
 
   const sidValue = request.cookies.sid
-  if (!sidValue) {
-    reply.header('user-id', '')
-    reply.code(204)
-    return
+  request.log.info({sidValue}, 'sid')
+  if (sidValue) {
+    const session = await this.getSession(sidValue)
+    if (session) {
+      request.log.trace({session}, 'session found')
+      groups = JSON.parse(session.groups || '{}')
+      groups.logged = true
+    }
   }
 
-  const session = await util.promisify(this.redis.hgetall).call(this.redis, sidValue)
-  if (!session) {
-    reply.header('user-id', '')
-    reply.code(204)
-    return
+  const allowed = !!doGroupsMeetGroupExpression(groupExpression, groups)
+  request.log.info({groupExpression, groups, allowed}, 'expression result')
+  if (!allowed) {
+    reply.code(403)
+    return '{}'
   }
 
-  reply.header('user-id', session.userId)
-
-  const groups = JSON.parse(session.groups || '{}')
-  if (doGroupsMeetGroupExpression(groupExpression, groups)) {
-    reply.header('allowed', '1')
-  } else {
-    reply.header('allowed', '0')
-  }
-
+  reply.header('allowed', '1')
   reply.code(204)
 }
 
 function doGroupsMeetGroupExpression (expression, groups) {
+  groups.true = true
+  groups.false = false
   const functionBody = 'return ' + expression.replace(/(\w+)/g, function (m) { return 'g.' + m })
 
   const f = new Function('g', functionBody) // eslint-disable-line

@@ -8,5 +8,7 @@ RUN npm install --only=production
 
 COPY . .
 
-EXPOSE 8080
-CMD [ "npm", "start" ]
+ARG HTTP_PORT=3000
+
+EXPOSE $HTTP_PORT
+CMD [ "npm", "start", "--", "--port", "$HTTP_PORT", "--address", "0.0.0.0", "--log-level", "trace", "--prefix", "/auth"]

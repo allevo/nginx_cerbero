@@ -21,7 +21,8 @@
   "homepage": "https://github.com/allevo/nginx_cerbero#readme",
   "dependencies": {
     "bcrypt": "^1.0.3",
-    "fastify": "^0.39.1",
+    "fastify": "^0.40.0",
+    "fastify-cli": "^0.12.0",
     "fastify-cookie": "^1.2.0",
     "fastify-env": "^0.4.0",
     "fastify-mongodb": "^0.4.0",
